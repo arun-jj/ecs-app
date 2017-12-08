@@ -96,3 +96,11 @@ Resources:
     Properties:
       SubnetId: !Ref Subnet2
       NetworkAclId: !Ref NetworkAcl
+
+Outputs:
+  VPCId:
+    Value: !Ref VPC
+  Subnet1Id:
+    Value: !Ref Subnet1
+  Subnet2Id:
+    Value: !Ref Subnet2

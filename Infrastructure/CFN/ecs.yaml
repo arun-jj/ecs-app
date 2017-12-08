@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  AWS cloudformation template to create ecs cluster to the provided vpc and subnet
+
+Parameters:
+
+  ClusterName:
+    Description: Name of the ECS cluster to be launched
+    Type: String
+
+  VPC:
+    Description: VPC of the cluter to be created
+    Type: AWS::EC2::VPC::Id
+
+  Subnets:
+    Description: Subnets to which clusters to be deployed to
+    Type: List<AWS::EC2::Subnet::Id>
+
+  MinCapacity:
+    Type: Number
+    Description: Minimum Number of instances to launch in your ECS cluster.
+
+  MaxCapacity:
+    Type: Number
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+
+  DesiredCapacity:
+    Type: Number
+    Description: Desired number of instances to launch in your ECS cluster.
+
+Mappings:
+  AWSRegionToAMI:
+    us-west-2:
+      AMIID: ami-0def3275
+
+Resources:
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ClusterName
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: !Ref Subnets
+      LaunchConfigurationName: !Ref ECSLaunchConfiguration
+      MinSize: !Ref MinCapacity
+      MaxSize: !Ref MaxCapacity
+      DesiredCapacity: !Ref DesiredCapacity
+      CreationPolicy:
+        ResourceSignal:
+          Timeout: PT15M
+      UpdatePolicy:
+        AutoScalingReplacingUpdate:
+          WillReplace: 'true'
+        AutoScalingRollingUpdate:
+          MinInstancesInService: 1
+          MaxBatchSize: 1
+          PauseTime: PT15M
+          SuspendProcesses:
+            - HealthCheck
+            - ReplaceUnhealthy
+            - AZRebalance
+            - AlarmNotification
+            - ScheduledActions
+          WaitOnResourceSignals: true
