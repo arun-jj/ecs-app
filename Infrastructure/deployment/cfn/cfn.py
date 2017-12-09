@@ -21,6 +21,19 @@ class CfnStack:
             logging.error('The stack {} doesn not exist'.format(stackname))
             return False
 
+    def stack_output(self, stackname):
+        try:
+            response = self._client.describe_stacks(StackName=stackname)
+            outputs = response['Stacks'][0]['Outputs']
+            result = {}
+            for output in outputs:
+                result[output['OutputKey']] = output['OutputValue']
+            return result
+        except botocore.exceptions.ClientError:
+            msg = 'The stack {} doesn not exist'.format(stackname)
+            logging.error(msg)
+            raise StackException(msg)
+
     def create_stack(self, stackname, template, parameters=None, iam=None):
         try:
             params = {
@@ -35,7 +48,7 @@ class CfnStack:
                     msg = 'Invalid value {} for iam'.format(iam)
                     logging.error(msg)
                     raise StackException(msg)
-                params.update({'Capabilities': iam})
+                params.update({'Capabilities': [iam]})
 
             self._client.create_stack(**params)
 
@@ -60,7 +73,7 @@ class CfnStack:
                     msg = 'Invalid value {} for iam'.format(iam)
                     logging.error(msg)
                     raise StackException(msg)
-                params.update({'Capabilities': iam})
+                params.update({'Capabilities': [iam]})
 
             self._client.update_stack(**params)
 

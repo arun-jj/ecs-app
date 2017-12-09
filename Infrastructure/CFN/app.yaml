@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS cloudformation deploy application into ECS cluster
+
+Parameters:
+
+  ECSClusterName:
+    Description: ECS cluster name
+    Type: String
+
+  ECSTaskName:
+    Description: ECS task name
+    Type: String
+
+  DockerImage:
+    Description: Docker Image URL
+    Type: String
+
+Resources:
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      TaskRoleArn: !Ref TaskDefinitionRole
+      ContainerDefinitions:
+        -
+          Name: !Ref ECSTaskName
+          Image: !Ref DockerImage
+          Cpu: '10'
+          Memory: '300'
+          PortMappings:
+            - ContainerPort: 5000
+
+  ECSService:
+    Type: "AWS::ECS::Service"
+    Properties:
+      Cluster: !Ref ECSClusterName
+      DesiredCount: 1
+      TaskDefinition: !Ref TaskDefinition
+
+  TaskDefinitionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ecs.amazonaws.com, ecs-tasks.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:DeregisterInstancesFromLoadBalancer
+              - elasticloadbalancing:DeregisterTargets
+              - elasticloadbalancing:Describe*
+              - elasticloadbalancing:RegisterInstancesWithLoadBalancer
+              - elasticloadbalancing:RegisterTargets
+              - ec2:Describe*,
+              - ec2:AuthorizeSecurityGroupIngress
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvilability
+            Resource: '*'

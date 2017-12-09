@@ -12,12 +12,14 @@ Resources:
       VpcId: !Ref VPC
       CidrBlock: 10.0.0.0/24
       AvailabilityZone: us-west-2a
+      MapPublicIpOnLaunch: true
   Subnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.0.1.0/24
       AvailabilityZone: us-west-2b
+      MapPublicIpOnLaunch: true
   InternetGateway:
     Type: AWS::EC2::InternetGateway
   AttachInternetGateway:
@@ -50,8 +52,8 @@ Resources:
     Type: 'AWS::EC2::NetworkAcl'
     Properties:
       VpcId: !Ref VPC
-  InboundHTTPNetworkAclEntry:
-    Type: AWS::EC2::NetworkAclEntry
+  InboundHTTPPublicNetworkAclEntry:
+    Type: 'AWS::EC2::NetworkAclEntry'
     Properties:
       NetworkAclId: !Ref NetworkAcl
       RuleNumber: '100'
@@ -62,8 +64,8 @@ Resources:
       PortRange:
         From: '80'
         To: '80'
-  InboundSSHNetworkAclEntry:
-    Type: AWS::EC2::NetworkAclEntry
+  InboundDynamicPortPublicNetworkAclEntry:
+    Type: 'AWS::EC2::NetworkAclEntry'
     Properties:
       NetworkAclId: !Ref NetworkAcl
       RuleNumber: '101'
@@ -72,10 +74,22 @@ Resources:
       Egress: 'false'
       CidrBlock: 0.0.0.0/0
       PortRange:
+        From: '1024'
+        To: '65535'
+  InboundSSHPublicNetworkAclEntry:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      NetworkAclId: !Ref NetworkAcl
+      RuleNumber: '102'
+      Protocol: '6'
+      RuleAction: allow
+      Egress: 'false'
+      CidrBlock: '0.0.0.0/0'
+      PortRange:
         From: '22'
         To: '22'
-  OutBoundHTTPNetworkAclEntry:
-    Type: AWS::EC2::NetworkAclEntry
+  OutboundPublicNetworkAclEntry:
+    Type: 'AWS::EC2::NetworkAclEntry'
     Properties:
       NetworkAclId: !Ref NetworkAcl
       RuleNumber: '100'
@@ -84,8 +98,8 @@ Resources:
       Egress: 'true'
       CidrBlock: 0.0.0.0/0
       PortRange:
-        From: '80'
-        To: '80'
+        From: '0'
+        To: '65535'
   Subnet1NetworkAclAssociation:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties:
