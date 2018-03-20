@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  AWS cloudformation template to create ecs cluster to the provided vpc and subnet
+
+Parameters:
+
+  ClusterName:
+    Description: Name of the ECS cluster to be launched
+    Type: String
+
+  VpcId:
+    Description: VPC of the cluter to be created
+    Type: AWS::EC2::VPC::Id
+
+  Subnets:
+    Description: Subnets to which clusters to be deployed to
+    Type: List<AWS::EC2::Subnet::Id>
+
+  MinCapacity:
+    Description: Minimum Number of instances to launch in your ECS cluster
+    Type: Number
+
+  MaxCapacity:
+    Description: Maximum number of instances that can be launched in your ECS cluster
+    Type: Number
+
+  DesiredCapacity:
+    Description: Desired number of instances to launch in your ECS cluster
+    Type: Number
+
+  InstanceType:
+    Description: Desired instance type
+    Type: String
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances
+    Type: AWS::EC2::KeyPair::KeyName
+
+Mappings:
+  AWSRegionToAMI:
+    us-west-2:
+      AMIID: ami-7114c909
+
+Resources:
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ClusterName
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: !Ref Subnets
+      LaunchConfigurationName: !Ref ECSLaunchConfiguration
+      MinSize: !Ref MinCapacity
+      MaxSize: !Ref MaxCapacity
+      DesiredCapacity: !Ref DesiredCapacity
+
+  ECSLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [AWSRegionToAMI, !Ref "AWS::Region", AMIID]
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !Ref ECSSecurityGroup
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      UserData:
+        "Fn::Base64": !Sub |
+            #!/bin/bash
+            echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS Security Group
+      VpcId: !Ref VpcId
+
+  ECSSecurityGroupHTTPinbound:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ECSSecurityGroup
+      IpProtocol: tcp
+      FromPort: '1024'
+      ToPort: '65535'
+      CidrIp: 0.0.0.0/0
+
+  ECSSecurityGroupSSHinbound:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ECSSecurityGroup
+      IpProtocol: tcp
+      FromPort: '22'
+      ToPort: '22'
+      CidrIp: 0.0.0.0/0
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref EC2Role
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ec2.amazonaws.com, ecs.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - ecs:CreateCluster
+              - ecs:DeregisterContainerInstance
+              - ecs:DiscoverPollEndpoint
+              - ecs:Poll
+              - ecs:RegisterContainerInstance
+              - ecs:StartTelemetrySession
+              - ecs:Submit*
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvilability
+            Resource: '*'
+
+Outputs:
+
+  ECSCluster:
+    Description: Id of the ECS cluster
+    Value: !Ref ECSCluster
